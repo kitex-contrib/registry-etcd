@@ -37,8 +37,15 @@ type etcdResolver struct {
 
 // NewEtcdResolver creates a etcd based resolver.
 func NewEtcdResolver(endpoints []string) (discovery.Resolver, error) {
+	return NewEtcdResolverWithAuth(endpoints, "", "")
+}
+
+// NewEtcdResolverWithAuth creates a etcd based resolver with given username and password.
+func NewEtcdResolverWithAuth(endpoints []string, username, password string) (discovery.Resolver, error) {
 	etcdClient, err := clientv3.New(clientv3.Config{
 		Endpoints: endpoints,
+		Username:  username,
+		Password:  password,
 	})
 	if err != nil {
 		return nil, err
@@ -61,7 +68,7 @@ func (e *etcdResolver) Resolve(ctx context.Context, desc string) (discovery.Resu
 		return discovery.Result{}, err
 	}
 	var (
-		info serviceInfo
+		info instanceInfo
 		eps  []discovery.Instance
 	)
 	for _, kv := range resp.Kvs {

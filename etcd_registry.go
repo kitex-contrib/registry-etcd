@@ -36,10 +36,10 @@ const (
 type etcdRegistry struct {
 	etcdClient *clientv3.Client
 	leaseTTL   int64
-	meta       *registMeta
+	meta       *registerMeta
 }
 
-type registMeta struct {
+type registerMeta struct {
 	leaseID clientv3.LeaseID
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -47,8 +47,15 @@ type registMeta struct {
 
 // NewEtcdRegistry creates a etcd based registry.
 func NewEtcdRegistry(endpoints []string) (registry.Registry, error) {
+	return NewEtcdRegistryWithAuth(endpoints, "", "")
+}
+
+// NewEtcdRegistry creates a etcd based registry with given username and password.
+func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (registry.Registry, error) {
 	etcdClient, err := clientv3.New(clientv3.Config{
 		Endpoints: endpoints,
+		Username:  username,
+		Password:  password,
 	})
 	if err != nil {
 		return nil, err
@@ -61,18 +68,18 @@ func NewEtcdRegistry(endpoints []string) (registry.Registry, error) {
 
 // Register registers a server with given registry info.
 func (e *etcdRegistry) Register(info *registry.Info) error {
-	if info.ServiceName == "" {
-		return fmt.Errorf("missing service name in Register")
+	if err := validateRegistryInfo(info); err != nil {
+		return err
 	}
 	leaseID, err := e.grantLease()
 	if err != nil {
 		return err
 	}
 
-	if err := e.regist(info, leaseID); err != nil {
+	if err := e.register(info, leaseID); err != nil {
 		return err
 	}
-	meta := registMeta{
+	meta := registerMeta{
 		leaseID: leaseID,
 	}
 	meta.ctx, meta.cancel = context.WithCancel(context.Background())
@@ -88,15 +95,15 @@ func (e *etcdRegistry) Deregister(info *registry.Info) error {
 	if info.ServiceName == "" {
 		return fmt.Errorf("missing service name in Deregister")
 	}
-	if err := e.deregist(info); err != nil {
+	if err := e.deregister(info); err != nil {
 		return err
 	}
 	e.meta.cancel()
 	return nil
 }
 
-func (e *etcdRegistry) regist(info *registry.Info, leaseID clientv3.LeaseID) error {
-	val, err := json.Marshal(&serviceInfo{
+func (e *etcdRegistry) register(info *registry.Info, leaseID clientv3.LeaseID) error {
+	val, err := json.Marshal(&instanceInfo{
 		Network: info.Addr.Network(),
 		Address: info.Addr.String(),
 		Weight:  info.Weight,
@@ -111,7 +118,7 @@ func (e *etcdRegistry) regist(info *registry.Info, leaseID clientv3.LeaseID) err
 	return err
 }
 
-func (e *etcdRegistry) deregist(info *registry.Info) error {
+func (e *etcdRegistry) deregister(info *registry.Info) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	_, err := e.etcdClient.Delete(ctx, serviceKey(info.ServiceName, info.Addr.String()))
@@ -128,7 +135,7 @@ func (e *etcdRegistry) grantLease() (clientv3.LeaseID, error) {
 	return resp.ID, nil
 }
 
-func (e *etcdRegistry) keepalive(meta *registMeta) error {
+func (e *etcdRegistry) keepalive(meta *registerMeta) error {
 	keepAlive, err := e.etcdClient.KeepAlive(meta.ctx, meta.leaseID)
 	if err != nil {
 		return err
@@ -145,6 +152,16 @@ func (e *etcdRegistry) keepalive(meta *registMeta) error {
 		}
 		klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
 	}()
+	return nil
+}
+
+func validateRegistryInfo(info *registry.Info) error {
+	if info.ServiceName == "" {
+		return fmt.Errorf("missing service name in Register")
+	}
+	if info.Addr == nil {
+		return fmt.Errorf("missing addr in Register")
+	}
 	return nil
 }
 
