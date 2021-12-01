@@ -50,7 +50,7 @@ func NewEtcdRegistry(endpoints []string) (registry.Registry, error) {
 	return NewEtcdRegistryWithAuth(endpoints, "", "")
 }
 
-// NewEtcdRegistry creates a etcd based registry with given username and password.
+// NewEtcdRegistryWithAuth creates a etcd based registry with given username and password.
 func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (registry.Registry, error) {
 	etcdClient, err := clientv3.New(clientv3.Config{
 		Endpoints: endpoints,
