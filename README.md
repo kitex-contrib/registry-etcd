@@ -1,4 +1,4 @@
-# registry-etcd
+# registry-etcd (*This is a community driven project*)
 
 Some application runtime use [etcd](https://github.com/etcd-io/etcd) for service discovery.
 
@@ -57,3 +57,16 @@ func main() {
 }
 ```
 
+## More info
+
+See example.
+
+
+## Compatibility
+
+Compatible with etcd server v3.
+
+
+
+
+maintained by: [lizheming](https://github.com/duduainankai)
