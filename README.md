@@ -15,7 +15,7 @@ import (
 
 func main() {
     ...
-    r, err := etcd.NewEtcdRegister([]string{"127.0.0.1:2379"}) // r should not be reused.
+    r, err := etcd.NewEtcdRegistry([]string{"127.0.0.1:2379"}) // r should not be reused.
     if err != nil {
         log.Fatal(err)
     }
