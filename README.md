@@ -79,7 +79,8 @@ func (h *HelloImpl) Echo(ctx context.Context, req *api.Request) (resp *api.Respo
 }
 
 func main() {
-	r, err := etcd.NewEtcdRegistryWithAuth([]string{"127.0.0.1:2379"}, "test", "test")
+	// creates a etcd based registry with given username and password
+	r, err := etcd.NewEtcdRegistryWithAuth([]string{"127.0.0.1:2379"}, "username", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,8 +105,9 @@ import (
 	etcd "github.com/kitex-contrib/registry-etcd"
 )
 
-func main() {
-	r, err := etcd.NewEtcdResolverWithAuth([]string{"127.0.0.1:2379"}, "test", "test")
+func main() { 
+	// creates a etcd based resolver with given username and password
+	r, err := etcd.NewEtcdResolverWithAuth([]string{"127.0.0.1:2379"}, "username", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
