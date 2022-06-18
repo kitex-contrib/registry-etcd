@@ -57,6 +57,74 @@ func main() {
 }
 ```
 
+## Authentication
+
+### server
+```go
+package main
+
+import (
+    ...
+	"github.com/cloudwego/kitex/server"
+	etcd "github.com/kitex-contrib/registry-etcd"
+)
+
+type HelloImpl struct{}
+
+func (h *HelloImpl) Echo(ctx context.Context, req *api.Request) (resp *api.Response, err error) {
+	resp = &api.Response{
+		Message: req.Message,
+	}
+	return
+}
+
+func main() {
+	// creates a etcd based registry with given username and password
+	r, err := etcd.NewEtcdRegistryWithAuth([]string{"127.0.0.1:2379"}, "username", "password")
+	if err != nil {
+		log.Fatal(err)
+	}
+	server := hello.NewServer(new(HelloImpl), server.WithRegistry(r), server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{
+		ServiceName: "Hello",
+	}))
+	err = server.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+```
+
+### client
+```go
+package main
+
+import (
+    ...
+	"github.com/cloudwego/kitex/client"
+	etcd "github.com/kitex-contrib/registry-etcd"
+)
+
+func main() { 
+	// creates a etcd based resolver with given username and password
+	r, err := etcd.NewEtcdResolverWithAuth([]string{"127.0.0.1:2379"}, "username", "password")
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := hello.MustNewClient("Hello", client.WithResolver(r))
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		resp, err := client.Echo(ctx, &api.Request{Message: "Hello"})
+		cancel()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println(resp)
+		time.Sleep(time.Second)
+	}
+}
+```
+
 ## More info
 
 See example.

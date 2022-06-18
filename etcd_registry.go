@@ -146,11 +146,11 @@ func (e *etcdRegistry) keepalive(meta *registerMeta) error {
 		for range keepAlive {
 			select {
 			case <-meta.ctx.Done():
-				break
+				klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
+				return
 			default:
 			}
 		}
-		klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
 	}()
 	return nil
 }
