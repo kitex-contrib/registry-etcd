@@ -55,6 +55,23 @@ func NewEtcdResolverWithAuth(endpoints []string, username, password string) (dis
 	}, nil
 }
 
+// NewEtcdResolverWithOpts creates a etcd based resolver with given username/tls etc...
+func NewEtcdResolverWithOpts(endpoints []string, opts ...Option) (discovery.Resolver, error) {
+	cfg := clientv3.Config{
+		Endpoints: endpoints,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	etcdClient, err := clientv3.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &etcdResolver{
+		etcdClient: etcdClient,
+	}, nil
+}
+
 // Target implements the Resolver interface.
 func (e *etcdResolver) Target(ctx context.Context, target rpcinfo.EndpointInfo) (description string) {
 	return target.ServiceName()

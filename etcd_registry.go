@@ -66,6 +66,24 @@ func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (reg
 	}, nil
 }
 
+// NewEtcdRegistryWithOpts creates a etcd based registry with username/tls etc...
+func NewEtcdRegistryWithOpts(endpoints []string, opts ...Option) (registry.Registry, error) {
+	cfg := clientv3.Config{
+		Endpoints: endpoints,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	etcdClient, err := clientv3.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &etcdRegistry{
+		etcdClient: etcdClient,
+		leaseTTL:   getTTL(),
+	}, nil
+}
+
 // Register registers a server with given registry info.
 func (e *etcdRegistry) Register(info *registry.Info) error {
 	if err := validateRegistryInfo(info); err != nil {

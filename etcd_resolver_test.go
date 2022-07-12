@@ -85,6 +85,56 @@ func TestEmptyEndpoints(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestNewRegistryOpts(t *testing.T) {
+	opts := []Option{
+		WithTlsOpt("/opt/pki/etcd/server.pem", "/opt/pki/etcd/server-key.pem", "/opt/pki/etcd/ca.pem"),
+		WithAuthOpt("root", "123456"),
+	}
+
+	rg, err := NewEtcdRegistryWithOpts([]string{"192.168.0.121:2379"}, opts...)
+	require.Nil(t, err)
+	rs, err := NewEtcdResolverWithOpts([]string{"192.168.0.121:2379"}, opts...)
+	require.Nil(t, err)
+
+	require.Nil(t, err)
+
+	info := registry.Info{
+		ServiceName: serviceName,
+		Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+		Weight:      66,
+		Tags: map[string]string{
+			"hello": "world",
+		},
+	}
+
+	// test register service
+	{
+		err = rg.Register(&info)
+		require.Nil(t, err)
+		desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(serviceName, "", nil, nil))
+		result, err := rs.Resolve(context.TODO(), desc)
+		require.Nil(t, err)
+		expected := discovery.Result{
+			Cacheable: true,
+			CacheKey:  serviceName,
+			Instances: []discovery.Instance{
+				discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags),
+			},
+		}
+		require.Equal(t, expected, result)
+	}
+
+	// test deregister service
+	{
+		err = rg.Deregister(&info)
+		require.Nil(t, err)
+		desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(serviceName, "", nil, nil))
+		_, err = rs.Resolve(context.TODO(), desc)
+		require.NotNil(t, err)
+	}
+
+}
+
 func setupEmbedEtcd(t *testing.T) (*embed.Etcd, string) {
 	endpoint := fmt.Sprintf("unix://localhost:%06d", os.Getpid())
 	u, err := url.Parse(endpoint)
