@@ -26,12 +26,11 @@ import (
 
 type Option func(cfg *clientv3.Config)
 
-func WithTlsOpt(certFile, keyFile, caFile string) Option {
+func WithTLSOpt(certFile, keyFile, caFile string) Option {
 	return func(cfg *clientv3.Config) {
 		tlsCfg, err := newTLSConfig(certFile, keyFile, caFile, "")
 		if err != nil {
 			klog.Errorf("tls failed with err: %v , skipping tls.", err)
-			tlsCfg = nil
 		}
 		cfg.TLS = tlsCfg
 	}
@@ -47,16 +46,16 @@ func WithAuthOpt(username, password string) Option {
 func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return &tls.Config{}, err
+		return nil, err
 	}
 	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		return &tls.Config{}, err
+		return nil, err
 	}
 	caCertPool := x509.NewCertPool()
 	successful := caCertPool.AppendCertsFromPEM(caCert)
 	if !successful {
-		return &tls.Config{}, errors.New("failed to parse ca certificate as PEM encoded content")
+		return nil, errors.New("failed to parse ca certificate as PEM encoded content")
 	}
 	cfg := &tls.Config{
 		Certificates: []tls.Certificate{cert},
