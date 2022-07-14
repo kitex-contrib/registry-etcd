@@ -87,13 +87,13 @@ func TestEmptyEndpoints(t *testing.T) {
 
 func TestNewRegistryOpts(t *testing.T) {
 	opts := []Option{
-		WithTlsOpt("/opt/pki/etcd/server.pem", "/opt/pki/etcd/server-key.pem", "/opt/pki/etcd/ca.pem"),
+		WithTLSOpt("/opt/pki/etcd/server.pem", "/opt/pki/etcd/server-key.pem", "/opt/pki/etcd/ca.pem"),
 		WithAuthOpt("root", "123456"),
 	}
 
-	rg, err := NewEtcdRegistryWithOpts([]string{"192.168.0.121:2379"}, opts...)
+	rg, err := NewEtcdRegistry([]string{"127.0.0.1:2379"}, opts...)
 	require.Nil(t, err)
-	rs, err := NewEtcdResolverWithOpts([]string{"192.168.0.121:2379"}, opts...)
+	rs, err := NewEtcdResolver([]string{"127.0.0.1:2379"}, opts...)
 	require.Nil(t, err)
 
 	require.Nil(t, err)

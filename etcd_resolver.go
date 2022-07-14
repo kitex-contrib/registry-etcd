@@ -36,29 +36,16 @@ type etcdResolver struct {
 }
 
 // NewEtcdResolver creates a etcd based resolver.
-func NewEtcdResolver(endpoints []string) (discovery.Resolver, error) {
-	return NewEtcdResolverWithAuth(endpoints, "", "")
+func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, error) {
+	return NewEtcdResolverWithAuth(endpoints, "", "", opts...)
 }
 
 // NewEtcdResolverWithAuth creates a etcd based resolver with given username and password.
-func NewEtcdResolverWithAuth(endpoints []string, username, password string) (discovery.Resolver, error) {
-	etcdClient, err := clientv3.New(clientv3.Config{
+func NewEtcdResolverWithAuth(endpoints []string, username, password string, opts ...Option) (discovery.Resolver, error) {
+	cfg := clientv3.Config{
 		Endpoints: endpoints,
 		Username:  username,
 		Password:  password,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &etcdResolver{
-		etcdClient: etcdClient,
-	}, nil
-}
-
-// NewEtcdResolverWithOpts creates a etcd based resolver with given username/tls etc...
-func NewEtcdResolverWithOpts(endpoints []string, opts ...Option) (discovery.Resolver, error) {
-	cfg := clientv3.Config{
-		Endpoints: endpoints,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
