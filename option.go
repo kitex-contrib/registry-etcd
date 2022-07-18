@@ -20,12 +20,14 @@ import (
 	"errors"
 	"io/ioutil"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"github.com/cloudwego/kitex/pkg/klog"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+// Option sets options such as username, tls etc.
 type Option func(cfg *clientv3.Config)
 
+// WithTLSOpt returns a option that authentication by tls/ssl.
 func WithTLSOpt(certFile, keyFile, caFile string) Option {
 	return func(cfg *clientv3.Config) {
 		tlsCfg, err := newTLSConfig(certFile, keyFile, caFile, "")
@@ -36,6 +38,7 @@ func WithTLSOpt(certFile, keyFile, caFile string) Option {
 	}
 }
 
+// WithAuthOpt returns a option that authentication by usernane and password.
 func WithAuthOpt(username, password string) Option {
 	return func(cfg *clientv3.Config) {
 		cfg.Username = username
@@ -59,7 +62,7 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 	}
 	cfg := &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		RootCAs: caCertPool,
+		RootCAs:      caCertPool,
 	}
 	return cfg, nil
 }
