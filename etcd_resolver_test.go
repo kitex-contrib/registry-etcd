@@ -39,7 +39,6 @@ import (
 	"github.com/cloudwego/kitex/pkg/utils"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/server/v3/embed"
-	//"go.etcd.io/etcd/pkg/transport"
 )
 
 const (
@@ -106,9 +105,6 @@ func TestNewRegistryWithTLS(t *testing.T) {
 
 	s, endpoint := setupEmbedEtcdWithTLS(t, caFile, certFile, keyFile)
 
-	// opts = []Option{
-	// 	WithTLSOpt("/opt/pki/etcd/server.pem", "/opt/pki/etcd/server-key.pem", "/opt/pki/etcd/ca.pem"),
-	// }
 	opts := []Option{
 		WithTLSOpt(certFile, keyFile, caFile),
 	}
@@ -213,9 +209,9 @@ func setupCertificate() (caFile string, certFile string, keyFile string, err err
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		Subject: pkix.Name{
-			Organization:  []string{"Company, INC."},
-			Country:       []string{"Beijing"},
-			Province:      []string{"Beijing"},
+			Organization: []string{"Company, INC."},
+			Country:      []string{"Beijing"},
+			Province:     []string{"Beijing"},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
@@ -250,14 +246,13 @@ func setupCertificate() (caFile string, certFile string, keyFile string, err err
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
 	})
 
-
 	// set up our server certificate
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		Subject: pkix.Name{
-			Organization:  []string{"Company, INC."},
-			Country:       []string{"Beijing"},
-			Province:      []string{"Beijing"},
+			Organization: []string{"Company, INC."},
+			Country:      []string{"Beijing"},
+			Province:     []string{"Beijing"},
 		},
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		DNSNames:     []string{"localhost"},
@@ -289,7 +284,6 @@ func setupCertificate() (caFile string, certFile string, keyFile string, err err
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
 	})
-
 
 	// write to file
 	if err = os.WriteFile(caFile, caPEM.Bytes(), 0644); err != nil {
