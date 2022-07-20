@@ -16,22 +16,21 @@ package etcd
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"math/big"
-	"net"
-	"path/filepath"
-	"time"
-
-	"context"
 	"fmt"
 	"io/ioutil"
+	"math/big"
+	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/kitex/pkg/discovery"
 	"github.com/cloudwego/kitex/pkg/registry"
@@ -199,7 +198,7 @@ func setupEmbedEtcdWithTLS(t *testing.T, caFile, certFile, keyFile string) (*emb
 	return s, endpoint
 }
 
-func setupCertificate() (caFile string, certFile string, keyFile string, err error) {
+func setupCertificate() (caFile, certFile, keyFile string, err error) {
 	tempDir := os.TempDir()
 	caFile = filepath.Join(tempDir, "ca.pem")
 	certFile = filepath.Join(tempDir, "server.pem")
@@ -286,13 +285,13 @@ func setupCertificate() (caFile string, certFile string, keyFile string, err err
 	})
 
 	// write to file
-	if err = os.WriteFile(caFile, caPEM.Bytes(), 0644); err != nil {
+	if err = os.WriteFile(caFile, caPEM.Bytes(), 0o644); err != nil {
 		return
 	}
-	if err = os.WriteFile(certFile, certPEM.Bytes(), 0644); err != nil {
+	if err = os.WriteFile(certFile, certPEM.Bytes(), 0o644); err != nil {
 		return
 	}
-	if err = os.WriteFile(keyFile, certPrivKeyPEM.Bytes(), 0644); err != nil {
+	if err = os.WriteFile(keyFile, certPrivKeyPEM.Bytes(), 0o644); err != nil {
 		return
 	}
 
