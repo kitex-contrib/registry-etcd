@@ -46,11 +46,25 @@ type registerMeta struct {
 }
 
 // NewEtcdRegistry creates a etcd based registry.
-func NewEtcdRegistry(endpoints []string) (registry.Registry, error) {
-	return NewEtcdRegistryWithAuth(endpoints, "", "")
+func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
+	cfg := clientv3.Config{
+		Endpoints: endpoints,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	etcdClient, err := clientv3.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &etcdRegistry{
+		etcdClient: etcdClient,
+		leaseTTL:   getTTL(),
+	}, nil
 }
 
 // NewEtcdRegistryWithAuth creates a etcd based registry with given username and password.
+// Deprecated: Use WithAuthOpt instead.
 func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (registry.Registry, error) {
 	etcdClient, err := clientv3.New(clientv3.Config{
 		Endpoints: endpoints,
