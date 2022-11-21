@@ -90,6 +90,63 @@ func TestEtcdResolver(t *testing.T) {
 	teardownEmbedEtcd(s)
 }
 
+func TestEtcdResolverWithSamePrefix(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8889"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err = rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
 func TestEmptyEndpoints(t *testing.T) {
 	_, err := NewEtcdResolver([]string{})
 	require.NotNil(t, err)
