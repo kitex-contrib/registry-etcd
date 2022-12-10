@@ -80,12 +80,10 @@ func (e *etcdResolver) Resolve(ctx context.Context, desc string) (discovery.Resu
 	if err != nil {
 		return discovery.Result{}, err
 	}
-	var (
-		info instanceInfo
-		eps  []discovery.Instance
-	)
+	var eps []discovery.Instance
 	for _, kv := range resp.Kvs {
-		err := json.Unmarshal(kv.Value, &info)
+		var info instanceInfo
+		err = json.Unmarshal(kv.Value, &info)
 		if err != nil {
 			klog.Warnf("fail to unmarshal with err: %v, ignore key: %v", err, string(kv.Key))
 			continue
