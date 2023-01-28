@@ -147,6 +147,32 @@ func TestEtcdResolverWithSamePrefix(t *testing.T) {
 	teardownEmbedEtcd(s)
 }
 
+func TestEtcdRegistryWithSamePrefix(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd/test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
 func TestEmptyEndpoints(t *testing.T) {
 	_, err := NewEtcdResolver([]string{})
 	require.NotNil(t, err)

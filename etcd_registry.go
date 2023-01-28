@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -45,7 +46,7 @@ type registerMeta struct {
 	cancel  context.CancelFunc
 }
 
-// NewEtcdRegistry creates a etcd based registry.
+// NewEtcdRegistry creates an etcd based registry.
 func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
 	cfg := clientv3.Config{
 		Endpoints: endpoints,
@@ -172,6 +173,9 @@ func (e *etcdRegistry) keepalive(meta *registerMeta) error {
 func validateRegistryInfo(info *registry.Info) error {
 	if info.ServiceName == "" {
 		return fmt.Errorf("missing service name in Register")
+	}
+	if strings.Contains(info.ServiceName, "/") {
+		return fmt.Errorf("service name registered with etcd should not include character '/'")
 	}
 	if info.Addr == nil {
 		return fmt.Errorf("missing addr in Register")
