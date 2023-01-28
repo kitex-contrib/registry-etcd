@@ -234,10 +234,13 @@ func setupCertificate() (caFile, certFile, keyFile string, err error) {
 
 	// pem encode
 	caPEM := new(bytes.Buffer)
-	pem.Encode(caPEM, &pem.Block{
+	err = pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
+	if err != nil {
+		return
+	}
 
 	caPrivKeyPEM := new(bytes.Buffer)
 	pem.Encode(caPrivKeyPEM, &pem.Block{
