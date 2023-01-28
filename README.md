@@ -127,7 +127,7 @@ func main() {
 
 ## More info
 
-See example.
+See [example](/example).
 
 
 ## Compatibility
