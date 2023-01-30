@@ -14,17 +14,19 @@
 
 package etcd
 
+import "fmt"
+
 const (
-	etcdPrefix = "kitex/registry-etcd"
+	etcdPrefixTpl = "kitex/registry-etcd/%v/"
 )
 
 func serviceKeyPrefix(serviceName string) string {
-	return etcdPrefix + "/" + serviceName
+	return fmt.Sprintf(etcdPrefixTpl, serviceName)
 }
 
 // serviceKey generates the key used to stored in etcd.
 func serviceKey(serviceName, addr string) string {
-	return serviceKeyPrefix(serviceName) + "/" + addr
+	return serviceKeyPrefix(serviceName) + addr
 }
 
 // instanceInfo used to stored service basic info in etcd.
