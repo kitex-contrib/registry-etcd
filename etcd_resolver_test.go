@@ -90,6 +90,89 @@ func TestEtcdResolver(t *testing.T) {
 	teardownEmbedEtcd(s)
 }
 
+func TestEtcdResolverWithSamePrefix(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8889"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err = rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
+func TestEtcdRegistryWithSamePrefix(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd/test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
 func TestEmptyEndpoints(t *testing.T) {
 	_, err := NewEtcdResolver([]string{})
 	require.NotNil(t, err)
@@ -234,13 +317,13 @@ func setupCertificate() (caFile, certFile, keyFile string, err error) {
 
 	// pem encode
 	caPEM := new(bytes.Buffer)
-	pem.Encode(caPEM, &pem.Block{
+	_ = pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
 
 	caPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(caPrivKeyPEM, &pem.Block{
+	_ = pem.Encode(caPrivKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
 	})
@@ -273,13 +356,13 @@ func setupCertificate() (caFile, certFile, keyFile string, err error) {
 	}
 
 	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
+	_ = pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
 
 	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
+	_ = pem.Encode(certPrivKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
 	})
