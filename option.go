@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"io/ioutil"
+	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -43,6 +44,13 @@ func WithAuthOpt(username, password string) Option {
 	return func(cfg *clientv3.Config) {
 		cfg.Username = username
 		cfg.Password = password
+	}
+}
+
+// WithDialTimeoutOpt returns a option set dialTimeout
+func WithDialTimeoutOpt(dialTimeout time.Duration) Option {
+	return func(cfg *clientv3.Config) {
+		cfg.DialTimeout = dialTimeout
 	}
 }
 
