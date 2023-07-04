@@ -173,6 +173,132 @@ func TestEtcdRegistryWithSamePrefix(t *testing.T) {
 	teardownEmbedEtcd(s)
 }
 
+func TestEtcdRegistryWithAddressBlank(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "[::]:8888"),
+			Weight:      27,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:9999"),
+			Weight:      27,
+			Tags:        map[string]string{"hello": "world"},
+		}}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			address, err := rg.(*etcdRegistry).getAddressOfRegistration(&info)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), address, info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err := rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
+func TestEtcdRegistryWithEnvironmentVariable(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	err := os.Setenv(kitexPortToRegistry, "8899")
+	if err != nil {
+		return
+	}
+	err = os.Setenv(kitexIpToRegistry, "127.0.0.2")
+	if err != nil {
+		return
+	}
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "[::]:8888"),
+			Weight:      27,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "10.122.1.108:9999"),
+			Weight:      27,
+			Tags:        map[string]string{"hello": "world"},
+		}}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			address, err := rg.(*etcdRegistry).getAddressOfRegistration(&info)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), address, info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err := rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+	os.Unsetenv(kitexPortToRegistry)
+	os.Unsetenv(kitexIpToRegistry)
+	teardownEmbedEtcd(s)
+}
+
 func TestEmptyEndpoints(t *testing.T) {
 	_, err := NewEtcdResolver([]string{})
 	require.NotNil(t, err)
