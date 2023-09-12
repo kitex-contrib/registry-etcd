@@ -27,6 +27,7 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/registry"
+	"github.com/kitex-contrib/registry-etcd/retry"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -38,9 +39,11 @@ const (
 )
 
 type etcdRegistry struct {
-	etcdClient *clientv3.Client
-	leaseTTL   int64
-	meta       *registerMeta
+	etcdClient  *clientv3.Client
+	leaseTTL    int64
+	meta        *registerMeta
+	retryConfig *retry.Config
+	stop        chan struct{}
 }
 
 type registerMeta struct {
@@ -61,13 +64,36 @@ func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, err
 	if err != nil {
 		return nil, err
 	}
+	retryConfig := retry.NewRetryConfig()
 	return &etcdRegistry{
-		etcdClient: etcdClient,
-		leaseTTL:   getTTL(),
+		etcdClient:  etcdClient,
+		leaseTTL:    getTTL(),
+		retryConfig: retryConfig,
+		stop:        make(chan struct{}, 1),
 	}, nil
 }
 
-// NewEtcdRegistryWithAuth creates a etcd based registry with given username and password.
+// NewEtcdRegistryWithRetry creates an etcd based registry with given custom retry configs
+func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opts ...Option) (registry.Registry, error) {
+	cfg := clientv3.Config{
+		Endpoints: endpoints,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	etcdClient, err := clientv3.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &etcdRegistry{
+		etcdClient:  etcdClient,
+		leaseTTL:    getTTL(),
+		retryConfig: retryConfig,
+		stop:        make(chan struct{}, 1),
+	}, nil
+}
+
+// NewEtcdRegistryWithAuth creates an etcd based registry with given username and password.
 // Deprecated: Use WithAuthOpt instead.
 func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (registry.Registry, error) {
 	etcdClient, err := clientv3.New(clientv3.Config{
@@ -78,9 +104,12 @@ func NewEtcdRegistryWithAuth(endpoints []string, username, password string) (reg
 	if err != nil {
 		return nil, err
 	}
+	retryConfig := retry.NewRetryConfig()
 	return &etcdRegistry{
-		etcdClient: etcdClient,
-		leaseTTL:   getTTL(),
+		etcdClient:  etcdClient,
+		leaseTTL:    getTTL(),
+		retryConfig: retryConfig,
+		stop:        make(chan struct{}, 1),
 	}, nil
 }
 
@@ -137,7 +166,77 @@ func (e *etcdRegistry) register(info *registry.Info, leaseID clientv3.LeaseID) e
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	_, err = e.etcdClient.Put(ctx, serviceKey(info.ServiceName, addr), string(val), clientv3.WithLease(leaseID))
-	return err
+	if err != nil {
+		return err
+	}
+
+	go func(key, val string) {
+		e.keepRegister(key, val, e.retryConfig)
+	}(serviceKey(info.ServiceName, addr), string(val))
+
+	return nil
+}
+
+// keepRegister keep service registered status
+// maxRetry == 0 means retry forever
+func (e *etcdRegistry) keepRegister(key, val string, retryConfig *retry.Config) {
+	var failedTimes uint
+	delay := retryConfig.ObserveDelay
+	for retryConfig.MaxAttemptTimes == 0 || failedTimes < retryConfig.MaxAttemptTimes {
+		select {
+		case _, ok := <-e.stop:
+			if !ok {
+				close(e.stop)
+			}
+			klog.Infof("stop keep register service %s", key)
+			return
+		case <-time.After(delay):
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		resp, err := e.etcdClient.Get(ctx, key)
+		if err != nil {
+			klog.Warnf("keep register get %s failed with err: %v", key, err)
+			delay = retryConfig.RetryDelay
+			failedTimes++
+			continue
+		}
+
+		if len(resp.Kvs) == 0 {
+			klog.Infof("keep register service %s", key)
+			delay = retryConfig.RetryDelay
+			leaseID, err := e.grantLease()
+			if err != nil {
+				klog.Warnf("keep register grant lease %s failed with err: %v", key, err)
+				failedTimes++
+				continue
+			}
+
+			_, err = e.etcdClient.Put(ctx, key, val, clientv3.WithLease(leaseID))
+			if err != nil {
+				klog.Warnf("keep register put %s failed with err: %v", key, err)
+				failedTimes++
+				continue
+			}
+
+			meta := registerMeta{
+				leaseID: leaseID,
+			}
+			meta.ctx, meta.cancel = context.WithCancel(context.Background())
+			if err := e.keepalive(&meta); err != nil {
+				klog.Warnf("keep register keepalive %s failed with err: %v", key, err)
+				failedTimes++
+				continue
+			}
+			e.meta.cancel()
+			e.meta = &meta
+			delay = retryConfig.ObserveDelay
+		}
+
+		failedTimes = 0
+	}
+	klog.Errorf("keep register service %s failed times:%d", key, failedTimes)
 }
 
 func (e *etcdRegistry) deregister(info *registry.Info) error {
@@ -148,7 +247,11 @@ func (e *etcdRegistry) deregister(info *registry.Info) error {
 		return err
 	}
 	_, err = e.etcdClient.Delete(ctx, serviceKey(info.ServiceName, addr))
-	return err
+	if err != nil {
+		return err
+	}
+	e.stop <- struct{}{}
+	return nil
 }
 
 func (e *etcdRegistry) grantLease() (clientv3.LeaseID, error) {
