@@ -44,6 +44,7 @@ type etcdRegistry struct {
 	meta        *registerMeta
 	retryConfig *retry.Config
 	stop        chan struct{}
+	address     net.Addr
 }
 
 type registerMeta struct {
@@ -71,6 +72,16 @@ func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, err
 		retryConfig: retryConfig,
 		stop:        make(chan struct{}, 1),
 	}, nil
+}
+
+// SetFixedAddress sets the fixed address for registering
+// setting address to nil to clear the previous address
+func SetFixedAddress(r registry.Registry, address net.Addr) {
+	if er, ok := r.(*etcdRegistry); ok {
+		er.address = address
+		return
+	}
+	panic("invalid registry type: not etcdRegistry")
 }
 
 // NewEtcdRegistryWithRetry creates an etcd based registry with given custom retry configs
@@ -154,8 +165,13 @@ func (e *etcdRegistry) register(info *registry.Info, leaseID clientv3.LeaseID) e
 	if err != nil {
 		return err
 	}
+	network := info.Addr.Network()
+	if e.address != nil {
+		network = e.address.Network()
+		addr = e.address.String()
+	}
 	val, err := json.Marshal(&instanceInfo{
-		Network: info.Addr.Network(),
+		Network: network,
 		Address: addr,
 		Weight:  info.Weight,
 		Tags:    info.Tags,
