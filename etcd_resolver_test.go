@@ -369,7 +369,7 @@ func setupEmbedEtcd(t *testing.T) (*embed.Etcd, string) {
 	require.Nil(t, err)
 
 	cfg := embed.NewConfig()
-	cfg.LCUrls = []url.URL{*u}
+	cfg.ListenClientUrls = []url.URL{*u}
 	// disable etcd log
 	cfg.LogLevel = "panic"
 	cfg.Dir = dir
@@ -395,7 +395,7 @@ func setupEmbedEtcdWithTLS(t *testing.T, caFile, certFile, keyFile string) (*emb
 	cfg.ClientTLSInfo.TrustedCAFile = caFile
 
 	require.Nil(t, err)
-	cfg.LCUrls = []url.URL{*u}
+	cfg.ListenClientUrls = []url.URL{*u}
 	// disable etcd log
 	cfg.LogLevel = "panic"
 	cfg.Dir = dir
