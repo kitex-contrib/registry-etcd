@@ -4,6 +4,8 @@ go 1.21
 
 toolchain go1.21.4
 
+replace github.com/apache/thrift => github.com/apache/thrift v0.13.0
+
 require (
 	github.com/cloudwego/kitex v0.9.0
 	github.com/cloudwego/kitex-examples v0.2.4
