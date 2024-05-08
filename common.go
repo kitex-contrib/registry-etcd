@@ -16,7 +16,7 @@ package etcd
 
 import "fmt"
 
-const (
+var (
 	etcdPrefixTpl = "kitex/registry-etcd/%v/"
 )
 

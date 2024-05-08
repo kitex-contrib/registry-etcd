@@ -39,6 +39,13 @@ func WithTLSOpt(certFile, keyFile, caFile string) Option {
 	}
 }
 
+// WithEtcdPrefixNewTpl returns a option prefix
+func WithEtcdPrefixNewTpl(etcdPrefixNewTpl string) Option {
+	return func(cfg *clientv3.Config) {
+		etcdPrefixTpl = etcdPrefixNewTpl + "/%v/"
+	}
+}
+
 // WithAuthOpt returns a option that authentication by usernane and password.
 func WithAuthOpt(username, password string) Option {
 	return func(cfg *clientv3.Config) {
