@@ -18,7 +18,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
+	"os"
+	_ "os"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -66,7 +67,7 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 	if err != nil {
 		return nil, err
 	}
-	caCert, err := ioutil.ReadFile(caFile)
+	caCert, err := os.ReadFile(caFile)
 	if err != nil {
 		return nil, err
 	}

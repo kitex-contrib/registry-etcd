@@ -23,7 +23,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
@@ -365,7 +364,7 @@ func setupEmbedEtcd(t *testing.T) (*embed.Etcd, string) {
 	endpoint := fmt.Sprintf("unix://localhost:%06d", os.Getpid())
 	u, err := url.Parse(endpoint)
 	require.Nil(t, err)
-	dir, err := ioutil.TempDir("", "etcd_resolver_test")
+	dir, err := os.MkdirTemp("", "etcd_resolver_test")
 	require.Nil(t, err)
 
 	cfg := embed.NewConfig()
@@ -385,7 +384,7 @@ func setupEmbedEtcdWithTLS(t *testing.T, caFile, certFile, keyFile string) (*emb
 	endpoint := fmt.Sprintf("unixs://localhost:%06d", os.Getpid())
 	u, err := url.Parse(endpoint)
 	require.Nil(t, err)
-	dir, err := ioutil.TempDir("", "etcd_resolver_test")
+	dir, err := os.MkdirTemp("", "etcd_resolver_test")
 	require.Nil(t, err)
 
 	cfg := embed.NewConfig()
