@@ -573,8 +573,8 @@ func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 }
 
 func TestEtcdResolverWithEtcdPrefix2(t *testing.T) {
+	etcdPrefixTpl = "kitex/registry-etcd/%v/"
 	s, endpoint := setupEmbedEtcd(t)
-
 	rg, err := NewEtcdRegistry([]string{endpoint})
 	require.Nil(t, err)
 	rs, err := NewEtcdResolver([]string{endpoint})
