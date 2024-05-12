@@ -18,47 +18,38 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"os"
-	_ "os"
-	"time"
-
 	"github.com/cloudwego/kitex/pkg/klog"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"io/ioutil"
+	"time"
 )
 
 // Option sets options such as username, tls etc.
-type Option func(cfg *clientv3.Config)
+type Option func(cfg *ConfigWithPrefix)
 
 // WithTLSOpt returns a option that authentication by tls/ssl.
 func WithTLSOpt(certFile, keyFile, caFile string) Option {
-	return func(cfg *clientv3.Config) {
+	return func(cfg *ConfigWithPrefix) {
 		tlsCfg, err := newTLSConfig(certFile, keyFile, caFile, "")
 		if err != nil {
 			klog.Errorf("tls failed with err: %v , skipping tls.", err)
 		}
-		cfg.TLS = tlsCfg
-	}
-}
-
-// WithEtcdPrefixNewTpl returns a option prefix
-func WithEtcdPrefixNewTpl(etcdPrefixNewTpl string) Option {
-	return func(cfg *clientv3.Config) {
-		etcdPrefixTpl = etcdPrefixNewTpl + "/%v/"
+		cfg.Configs.TLS = tlsCfg
 	}
 }
 
 // WithAuthOpt returns a option that authentication by usernane and password.
 func WithAuthOpt(username, password string) Option {
-	return func(cfg *clientv3.Config) {
-		cfg.Username = username
-		cfg.Password = password
+	return func(cfg *ConfigWithPrefix) {
+		cfg.Configs.Username = username
+		cfg.Configs.Password = password
 	}
 }
 
 // WithDialTimeoutOpt returns a option set dialTimeout
 func WithDialTimeoutOpt(dialTimeout time.Duration) Option {
-	return func(cfg *clientv3.Config) {
-		cfg.DialTimeout = dialTimeout
+	return func(cfg *ConfigWithPrefix) {
+		cfg.Configs.DialTimeout = dialTimeout
 	}
 }
 
@@ -67,7 +58,7 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 	if err != nil {
 		return nil, err
 	}
-	caCert, err := os.ReadFile(caFile)
+	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
 		return nil, err
 	}
@@ -81,4 +72,16 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 		RootCAs:      caCertPool,
 	}
 	return cfg, nil
+}
+
+type ConfigWithPrefix struct {
+	Configs *clientv3.Config
+	Prefix  string
+}
+type EtcdOption func(cfg *ConfigWithPrefix)
+
+func WithEtcdConfigAndPrefix(prefix string) Option {
+	return func(c *ConfigWithPrefix) {
+		c.Prefix = prefix
+	}
 }

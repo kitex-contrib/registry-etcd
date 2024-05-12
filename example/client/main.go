@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	r, err := etcd.NewEtcdResolver([]string{"127.0.0.1:2379"}, etcd.WithEtcdPrefixNewTpl("etcd/v2"))
+	r, err := etcd.NewEtcdResolver([]string{"127.0.0.1:2379"})
 	if err != nil {
 		log.Fatal(err)
 	}

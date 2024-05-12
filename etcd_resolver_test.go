@@ -23,6 +23,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
@@ -364,7 +365,7 @@ func setupEmbedEtcd(t *testing.T) (*embed.Etcd, string) {
 	endpoint := fmt.Sprintf("unix://localhost:%06d", os.Getpid())
 	u, err := url.Parse(endpoint)
 	require.Nil(t, err)
-	dir, err := os.MkdirTemp("", "etcd_resolver_test")
+	dir, err := ioutil.TempDir("", "etcd_resolver_test")
 	require.Nil(t, err)
 
 	cfg := embed.NewConfig()
@@ -384,7 +385,7 @@ func setupEmbedEtcdWithTLS(t *testing.T, caFile, certFile, keyFile string) (*emb
 	endpoint := fmt.Sprintf("unixs://localhost:%06d", os.Getpid())
 	u, err := url.Parse(endpoint)
 	require.Nil(t, err)
-	dir, err := os.MkdirTemp("", "etcd_resolver_test")
+	dir, err := ioutil.TempDir("", "etcd_resolver_test")
 	require.Nil(t, err)
 
 	cfg := embed.NewConfig()
@@ -510,14 +511,12 @@ func teardownEmbedEtcd(s *embed.Etcd) {
 	s.Close()
 	_ = os.RemoveAll(s.Config().Dir)
 }
-
 func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 	s, endpoint := setupEmbedEtcd(t)
-
-	rg, err := NewEtcdRegistry([]string{endpoint})
-	require.Nil(t, err)
 	tpl := "etcd/v1"
-	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdPrefixNewTpl(tpl))
+	rg, err := NewEtcdRegistry([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
 	require.Nil(t, err)
 
 	infoList := []registry.Info{
@@ -552,7 +551,7 @@ func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 				},
 			}
 			require.Equal(t, expected, result)
-			prefix := serviceKeyPrefix(info.ServiceName)
+			prefix := serviceKeyPrefix(rs.(*etcdResolver).GetPrefix(), info.ServiceName)
 			println(prefix)
 			require.Equal(t, fmt.Sprintf(tpl+"/%v/", info.ServiceName), prefix)
 		}
@@ -573,7 +572,6 @@ func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 }
 
 func TestEtcdResolverWithEtcdPrefix2(t *testing.T) {
-	etcdPrefixTpl = "kitex/registry-etcd/%v/"
 	s, endpoint := setupEmbedEtcd(t)
 	rg, err := NewEtcdRegistry([]string{endpoint})
 	require.Nil(t, err)
@@ -612,7 +610,7 @@ func TestEtcdResolverWithEtcdPrefix2(t *testing.T) {
 				},
 			}
 			require.Equal(t, expected, result)
-			prefix := serviceKeyPrefix(info.ServiceName)
+			prefix := serviceKeyPrefix(rs.(*etcdResolver).GetPrefix(), info.ServiceName)
 			println(prefix)
 			require.Equal(t, fmt.Sprintf("kitex/registry-etcd/%v/", info.ServiceName), prefix)
 		}
