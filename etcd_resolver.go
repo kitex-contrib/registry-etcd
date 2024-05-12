@@ -39,10 +39,10 @@ type etcdResolver struct {
 // NewEtcdResolver creates a etcd based resolver.
 func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, error) {
 	cfg := &ConfigWithPrefix{
-		Configs: &clientv3.Config{ // 注意这里添加了 & 来获取 Config 的地址
+		Configs: &clientv3.Config{
 			Endpoints: endpoints,
 		},
-		Prefix: "kitex/registry-etcd", // 默认前缀
+		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
 		opt(cfg)
