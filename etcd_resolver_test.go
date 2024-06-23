@@ -23,7 +23,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"io/ioutil" //nolint
 	"math/big"
 	"net"
 	"net/url"

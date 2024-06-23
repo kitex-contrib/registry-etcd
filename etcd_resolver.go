@@ -38,8 +38,8 @@ type etcdResolver struct {
 
 // NewEtcdResolver creates a etcd based resolver.
 func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, error) {
-	cfg := &ConfigWithPrefix{
-		Configs: &clientv3.Config{
+	cfg := &EtcdConfig{
+		Config: &clientv3.Config{
 			Endpoints: endpoints,
 		},
 		Prefix: "kitex/registry-etcd",
@@ -47,7 +47,7 @@ func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, er
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(*cfg.Configs)
+	etcdClient, err := clientv3.New(*cfg.Config)
 	if err != nil {
 		return nil, err
 	}
