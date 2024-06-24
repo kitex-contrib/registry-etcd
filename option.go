@@ -18,7 +18,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
+	"io/ioutil" // nolint
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
