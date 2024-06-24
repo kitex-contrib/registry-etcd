@@ -193,7 +193,8 @@ func TestEtcdRegistryWithAddressBlank(t *testing.T) {
 			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:9999"),
 			Weight:      27,
 			Tags:        map[string]string{"hello": "world"},
-		}}
+		},
+	}
 
 	// test register service
 	{
@@ -260,7 +261,8 @@ func TestEtcdRegistryWithEnvironmentVariable(t *testing.T) {
 			Addr:        utils.NewNetAddr("tcp", "10.122.1.108:9999"),
 			Weight:      27,
 			Tags:        map[string]string{"hello": "world"},
-		}}
+		},
+	}
 
 	// test register service
 	{
@@ -511,12 +513,13 @@ func teardownEmbedEtcd(s *embed.Etcd) {
 	s.Close()
 	_ = os.RemoveAll(s.Config().Dir)
 }
+
 func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 	s, endpoint := setupEmbedEtcd(t)
 	tpl := "etcd/v1"
-	rg, err := NewEtcdRegistry([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	rg, err := NewEtcdRegistry([]string{endpoint}, WithServiceKey(tpl))
 	require.Nil(t, err)
-	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	rs, err := NewEtcdResolver([]string{endpoint}, WithServiceKey(tpl))
 	require.Nil(t, err)
 
 	infoList := []registry.Info{
@@ -553,7 +556,7 @@ func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 			require.Equal(t, expected, result)
 			prefix := serviceKeyPrefix(rs.(*etcdResolver).GetPrefix(), info.ServiceName)
 			println(prefix)
-			require.Equal(t, fmt.Sprintf(tpl+"/%v/", info.ServiceName), prefix)
+			require.Equal(t, fmt.Sprintf(tpl+"/%v", info.ServiceName), prefix)
 		}
 	}
 

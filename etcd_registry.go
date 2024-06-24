@@ -56,16 +56,15 @@ type registerMeta struct {
 
 // NewEtcdRegistry creates an etcd based registry.
 func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
-	cfg := &EtcdConfig{
-		Config: &clientv3.Config{
+	cfg := &Config{
+		EtcdClient: &clientv3.Config{
 			Endpoints: endpoints,
 		},
-		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(*cfg.Config)
+	etcdClient, err := clientv3.New(*cfg.EtcdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -91,16 +90,15 @@ func SetFixedAddress(r registry.Registry, address net.Addr) {
 
 // NewEtcdRegistryWithRetry creates an etcd based registry with given custom retry configs
 func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opts ...Option) (registry.Registry, error) {
-	cfg := &EtcdConfig{
-		Config: &clientv3.Config{
+	cfg := &Config{
+		EtcdClient: &clientv3.Config{
 			Endpoints: endpoints,
 		},
-		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(*cfg.Config)
+	etcdClient, err := clientv3.New(*cfg.EtcdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +308,6 @@ func (e *etcdRegistry) keepalive(meta *registerMeta) error {
 
 // getAddressOfRegistration returns the address of the service registration.
 func (e *etcdRegistry) getAddressOfRegistration(info *registry.Info) (string, error) {
-
 	host, port, err := net.SplitHostPort(info.Addr.String())
 	if err != nil {
 		return "", err
