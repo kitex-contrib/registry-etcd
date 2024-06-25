@@ -25,37 +25,36 @@ import (
 )
 
 // Option sets options such as username, tls etc.
-type Option func(cfg *EtcdConfig)
+type Option func(cfg *Config)
 
-type EtcdConfig struct {
-	Config *clientv3.Config
-	Prefix string
+type Config struct {
+	EtcdConfig *clientv3.Config
+	Prefix     string
 }
-type EtcdOption func(cfg *EtcdConfig)
 
 // WithTLSOpt returns a option that authentication by tls/ssl.
 func WithTLSOpt(certFile, keyFile, caFile string) Option {
-	return func(cfg *EtcdConfig) {
+	return func(cfg *Config) {
 		tlsCfg, err := newTLSConfig(certFile, keyFile, caFile, "")
 		if err != nil {
 			klog.Errorf("tls failed with err: %v , skipping tls.", err)
 		}
-		cfg.Config.TLS = tlsCfg
+		cfg.EtcdConfig.TLS = tlsCfg
 	}
 }
 
 // WithAuthOpt returns a option that authentication by usernane and password.
 func WithAuthOpt(username, password string) Option {
-	return func(cfg *EtcdConfig) {
-		cfg.Config.Username = username
-		cfg.Config.Password = password
+	return func(cfg *Config) {
+		cfg.EtcdConfig.Username = username
+		cfg.EtcdConfig.Password = password
 	}
 }
 
 // WithDialTimeoutOpt returns a option set dialTimeout
 func WithDialTimeoutOpt(dialTimeout time.Duration) Option {
-	return func(cfg *EtcdConfig) {
-		cfg.Config.DialTimeout = dialTimeout
+	return func(cfg *Config) {
+		cfg.EtcdConfig.DialTimeout = dialTimeout
 	}
 }
 
@@ -80,8 +79,9 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 	return cfg, nil
 }
 
+// WithEtcdConfigAndPrefix returns an option that sets the Prefix field in the Config struct
 func WithEtcdConfigAndPrefix(prefix string) Option {
-	return func(c *EtcdConfig) {
+	return func(c *Config) {
 		c.Prefix = prefix
 	}
 }

@@ -56,8 +56,8 @@ type registerMeta struct {
 
 // NewEtcdRegistry creates an etcd based registry.
 func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
-	cfg := &EtcdConfig{
-		Config: &clientv3.Config{
+	cfg := &Config{
+		EtcdConfig: &clientv3.Config{
 			Endpoints: endpoints,
 		},
 		Prefix: "kitex/registry-etcd",
@@ -65,7 +65,7 @@ func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, err
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(*cfg.Config)
+	etcdClient, err := clientv3.New(*cfg.EtcdConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func SetFixedAddress(r registry.Registry, address net.Addr) {
 
 // NewEtcdRegistryWithRetry creates an etcd based registry with given custom retry configs
 func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opts ...Option) (registry.Registry, error) {
-	cfg := &EtcdConfig{
-		Config: &clientv3.Config{
+	cfg := &Config{
+		EtcdConfig: &clientv3.Config{
 			Endpoints: endpoints,
 		},
 		Prefix: "kitex/registry-etcd",
@@ -100,7 +100,7 @@ func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opt
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(*cfg.Config)
+	etcdClient, err := clientv3.New(*cfg.EtcdConfig)
 	if err != nil {
 		return nil, err
 	}
