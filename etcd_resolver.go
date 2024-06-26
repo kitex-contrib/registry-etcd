@@ -33,22 +33,27 @@ const (
 // etcdResolver is a resolver using etcd.
 type etcdResolver struct {
 	etcdClient *clientv3.Client
+	prefix     string
 }
 
 // NewEtcdResolver creates a etcd based resolver.
 func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, error) {
-	cfg := clientv3.Config{
-		Endpoints: endpoints,
+	cfg := &Config{
+		EtcdConfig: &clientv3.Config{
+			Endpoints: endpoints,
+		},
+		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(cfg)
+	etcdClient, err := clientv3.New(*cfg.EtcdConfig)
 	if err != nil {
 		return nil, err
 	}
 	return &etcdResolver{
 		etcdClient: etcdClient,
+		prefix:     cfg.Prefix,
 	}, nil
 }
 
@@ -75,7 +80,7 @@ func (e *etcdResolver) Target(ctx context.Context, target rpcinfo.EndpointInfo) 
 
 // Resolve implements the Resolver interface.
 func (e *etcdResolver) Resolve(ctx context.Context, desc string) (discovery.Result, error) {
-	prefix := serviceKeyPrefix(desc)
+	prefix := serviceKeyPrefix(e.prefix, desc)
 	resp, err := e.etcdClient.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
 		return discovery.Result{}, err
@@ -112,4 +117,7 @@ func (e *etcdResolver) Diff(cacheKey string, prev, next discovery.Result) (disco
 // Name implements the Resolver interface.
 func (e *etcdResolver) Name() string {
 	return "etcd"
+}
+func (e *etcdResolver) GetPrefix() string {
+	return e.prefix
 }

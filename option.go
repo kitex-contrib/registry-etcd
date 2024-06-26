@@ -18,39 +18,43 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
-	"time"
-
 	"github.com/cloudwego/kitex/pkg/klog"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"io/ioutil" //nolint
+	"time"
 )
 
 // Option sets options such as username, tls etc.
-type Option func(cfg *clientv3.Config)
+type Option func(cfg *Config)
+
+type Config struct {
+	EtcdConfig *clientv3.Config
+	Prefix     string
+}
 
 // WithTLSOpt returns a option that authentication by tls/ssl.
 func WithTLSOpt(certFile, keyFile, caFile string) Option {
-	return func(cfg *clientv3.Config) {
+	return func(cfg *Config) {
 		tlsCfg, err := newTLSConfig(certFile, keyFile, caFile, "")
 		if err != nil {
 			klog.Errorf("tls failed with err: %v , skipping tls.", err)
 		}
-		cfg.TLS = tlsCfg
+		cfg.EtcdConfig.TLS = tlsCfg
 	}
 }
 
 // WithAuthOpt returns a option that authentication by usernane and password.
 func WithAuthOpt(username, password string) Option {
-	return func(cfg *clientv3.Config) {
-		cfg.Username = username
-		cfg.Password = password
+	return func(cfg *Config) {
+		cfg.EtcdConfig.Username = username
+		cfg.EtcdConfig.Password = password
 	}
 }
 
 // WithDialTimeoutOpt returns a option set dialTimeout
 func WithDialTimeoutOpt(dialTimeout time.Duration) Option {
-	return func(cfg *clientv3.Config) {
-		cfg.DialTimeout = dialTimeout
+	return func(cfg *Config) {
+		cfg.EtcdConfig.DialTimeout = dialTimeout
 	}
 }
 
@@ -73,4 +77,11 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 		RootCAs:      caCertPool,
 	}
 	return cfg, nil
+}
+
+// WithEtcdConfigAndPrefix returns an option that sets the Prefix field in the Config struct
+func WithEtcdConfigAndPrefix(prefix string) Option {
+	return func(c *Config) {
+		c.Prefix = prefix
+	}
 }

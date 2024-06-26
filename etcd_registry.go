@@ -45,6 +45,7 @@ type etcdRegistry struct {
 	retryConfig *retry.Config
 	stop        chan struct{}
 	address     net.Addr
+	prefix      string
 }
 
 type registerMeta struct {
@@ -55,13 +56,16 @@ type registerMeta struct {
 
 // NewEtcdRegistry creates an etcd based registry.
 func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
-	cfg := clientv3.Config{
-		Endpoints: endpoints,
+	cfg := &Config{
+		EtcdConfig: &clientv3.Config{
+			Endpoints: endpoints,
+		},
+		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(cfg)
+	etcdClient, err := clientv3.New(*cfg.EtcdConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +75,7 @@ func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, err
 		leaseTTL:    getTTL(),
 		retryConfig: retryConfig,
 		stop:        make(chan struct{}, 1),
+		prefix:      cfg.Prefix,
 	}, nil
 }
 
@@ -86,13 +91,16 @@ func SetFixedAddress(r registry.Registry, address net.Addr) {
 
 // NewEtcdRegistryWithRetry creates an etcd based registry with given custom retry configs
 func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opts ...Option) (registry.Registry, error) {
-	cfg := clientv3.Config{
-		Endpoints: endpoints,
+	cfg := &Config{
+		EtcdConfig: &clientv3.Config{
+			Endpoints: endpoints,
+		},
+		Prefix: "kitex/registry-etcd",
 	}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(cfg)
 	}
-	etcdClient, err := clientv3.New(cfg)
+	etcdClient, err := clientv3.New(*cfg.EtcdConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -181,14 +189,14 @@ func (e *etcdRegistry) register(info *registry.Info, leaseID clientv3.LeaseID) e
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err = e.etcdClient.Put(ctx, serviceKey(info.ServiceName, addr), string(val), clientv3.WithLease(leaseID))
+	_, err = e.etcdClient.Put(ctx, serviceKey(e.prefix, info.ServiceName, addr), string(val), clientv3.WithLease(leaseID))
 	if err != nil {
 		return err
 	}
 
 	go func(key, val string) {
 		e.keepRegister(key, val, e.retryConfig)
-	}(serviceKey(info.ServiceName, addr), string(val))
+	}(serviceKey(e.prefix, info.ServiceName, addr), string(val))
 
 	return nil
 }
@@ -262,7 +270,7 @@ func (e *etcdRegistry) deregister(info *registry.Info) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.etcdClient.Delete(ctx, serviceKey(info.ServiceName, addr))
+	_, err = e.etcdClient.Delete(ctx, serviceKey(e.prefix, info.ServiceName, addr))
 	if err != nil {
 		return err
 	}

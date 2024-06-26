@@ -23,7 +23,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"io/ioutil" //nolint
 	"math/big"
 	"net"
 	"net/url"
@@ -510,4 +510,122 @@ func setupCertificate() (caFile, certFile, keyFile string, err error) {
 func teardownEmbedEtcd(s *embed.Etcd) {
 	s.Close()
 	_ = os.RemoveAll(s.Config().Dir)
+}
+func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+	tpl := "etcd/v1"
+	rg, err := NewEtcdRegistry([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8889"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+			prefix := serviceKeyPrefix(rs.(*etcdResolver).GetPrefix(), info.ServiceName)
+			println(prefix)
+			require.Equal(t, fmt.Sprintf(tpl+"/%v/", info.ServiceName), prefix)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err = rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
+}
+
+func TestEtcdResolverWithEtcdPrefix2(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: "registry-etcd-test-suffix",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+		{
+			ServiceName: "registry-etcd-test",
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8889"),
+			Weight:      66,
+			Tags:        map[string]string{"hello": "world"},
+		},
+	}
+
+	// test register service
+	{
+		for _, info := range infoList {
+			err = rg.Register(&info)
+			require.Nil(t, err)
+
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  info.ServiceName,
+				Instances: []discovery.Instance{
+					discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags),
+				},
+			}
+			require.Equal(t, expected, result)
+			prefix := serviceKeyPrefix(rs.(*etcdResolver).GetPrefix(), info.ServiceName)
+			println(prefix)
+			require.Equal(t, fmt.Sprintf("kitex/registry-etcd/%v/", info.ServiceName), prefix)
+		}
+	}
+
+	// test deregister service
+	{
+		for _, info := range infoList {
+			err = rg.Deregister(&info)
+			require.Nil(t, err)
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(info.ServiceName, "", nil, nil))
+			_, err = rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	teardownEmbedEtcd(s)
 }
