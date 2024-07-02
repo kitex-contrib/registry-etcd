@@ -79,8 +79,8 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 	return cfg, nil
 }
 
-// WithEtcdConfigAndPrefix returns an option that sets the Prefix field in the Config struct
-func WithEtcdConfigAndPrefix(prefix string) Option {
+// WithEtcdServicePrefix returns an option that sets the Prefix field in the Config struct
+func WithEtcdServicePrefix(prefix string) Option {
 	return func(c *Config) {
 		c.Prefix = prefix
 	}
