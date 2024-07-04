@@ -514,9 +514,9 @@ func teardownEmbedEtcd(s *embed.Etcd) {
 func TestEtcdResolverWithEtcdPrefix(t *testing.T) {
 	s, endpoint := setupEmbedEtcd(t)
 	tpl := "etcd/v1"
-	rg, err := NewEtcdRegistry([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	rg, err := NewEtcdRegistry([]string{endpoint}, WithEtcdServicePrefix(tpl))
 	require.Nil(t, err)
-	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdConfigAndPrefix(tpl))
+	rs, err := NewEtcdResolver([]string{endpoint}, WithEtcdServicePrefix(tpl))
 	require.Nil(t, err)
 
 	infoList := []registry.Info{
