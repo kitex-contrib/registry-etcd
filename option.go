@@ -18,18 +18,20 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"github.com/cloudwego/kitex/pkg/klog"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"io/ioutil" //nolint
 	"time"
+
+	"github.com/cloudwego/kitex/pkg/klog"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // Option sets options such as username, tls etc.
 type Option func(cfg *Config)
 
 type Config struct {
-	EtcdConfig *clientv3.Config
-	Prefix     string
+	EtcdConfig    *clientv3.Config
+	Prefix        string
+	DefaultWeight int
 }
 
 // WithTLSOpt returns a option that authentication by tls/ssl.
@@ -83,5 +85,12 @@ func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, er
 func WithEtcdServicePrefix(prefix string) Option {
 	return func(c *Config) {
 		c.Prefix = prefix
+	}
+}
+
+// WithDefaultWeight returns an option that sets the DefaultWeight field in the Config struct
+func WithDefaultWeight(defaultWeight int) Option {
+	return func(cfg *Config) {
+		cfg.DefaultWeight = defaultWeight
 	}
 }

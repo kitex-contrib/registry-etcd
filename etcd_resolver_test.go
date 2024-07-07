@@ -629,3 +629,94 @@ func TestEtcdResolverWithEtcdPrefix2(t *testing.T) {
 
 	teardownEmbedEtcd(s)
 }
+
+func TestEtcdResolverWithDefaultWeight(t *testing.T) {
+	s, endpoint := setupEmbedEtcd(t)
+
+	rg, err := NewEtcdRegistry([]string{endpoint})
+	require.Nil(t, err)
+
+	infoList := []registry.Info{
+		{
+			ServiceName: serviceName,
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8888"),
+			Weight:      66,
+			Tags: map[string]string{
+				"hello": "world",
+			},
+		},
+		{
+			ServiceName: serviceName,
+			Addr:        utils.NewNetAddr("tcp", "127.0.0.1:8889"),
+			Weight:      0,
+			Tags: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	f := func(rs discovery.Resolver, defaultWeight int) {
+		// test register service
+		{
+			for _, info := range infoList {
+				err = rg.Register(&info)
+				require.Nil(t, err)
+			}
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(serviceName, "", nil, nil))
+			result, err := rs.Resolve(context.TODO(), desc)
+			require.Nil(t, err)
+			expected := discovery.Result{
+				Cacheable: true,
+				CacheKey:  serviceName,
+				Instances: []discovery.Instance{},
+			}
+			for _, info := range infoList {
+				if info.Weight > 0 {
+					expected.Instances = append(expected.Instances, discovery.NewInstance(info.Addr.Network(), info.Addr.String(), info.Weight, info.Tags))
+				} else {
+					expected.Instances = append(expected.Instances, discovery.NewInstance(info.Addr.Network(), info.Addr.String(), defaultWeight, info.Tags))
+				}
+			}
+			require.Equal(t, expected, result)
+		}
+
+		// test deregister service
+		{
+			require.Nil(t, err)
+			for _, info := range infoList {
+				err = rg.Deregister(&info)
+				require.Nil(t, err)
+			}
+			desc := rs.Target(context.TODO(), rpcinfo.NewEndpointInfo(serviceName, "", nil, nil))
+			_, err = rs.Resolve(context.TODO(), desc)
+			require.NotNil(t, err)
+		}
+	}
+
+	var rsList []struct {
+		rs discovery.Resolver
+		w  int
+	}
+
+	rs, err := NewEtcdResolver([]string{endpoint})
+	require.Nil(t, err)
+	rsList = append(rsList, struct {
+		rs discovery.Resolver
+		w  int
+	}{rs, defaultWeight})
+
+	for _, w := range []int{-1, 0, 10, 100} {
+		rs, err := NewEtcdResolver([]string{endpoint}, WithDefaultWeight(w))
+		require.Nil(t, err)
+		rsList = append(rsList, struct {
+			rs discovery.Resolver
+			w  int
+		}{rs, w})
+	}
+
+	for _, rs := range rsList {
+		f(rs.rs, rs.w)
+	}
+
+	teardownEmbedEtcd(s)
+}
