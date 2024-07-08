@@ -32,8 +32,9 @@ const (
 
 // etcdResolver is a resolver using etcd.
 type etcdResolver struct {
-	etcdClient *clientv3.Client
-	prefix     string
+	etcdClient    *clientv3.Client
+	prefix        string
+	defaultWeight int
 }
 
 // NewEtcdResolver creates a etcd based resolver.
@@ -42,7 +43,8 @@ func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, er
 		EtcdConfig: &clientv3.Config{
 			Endpoints: endpoints,
 		},
-		Prefix: "kitex/registry-etcd",
+		Prefix:        "kitex/registry-etcd",
+		DefaultWeight: defaultWeight,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -52,8 +54,9 @@ func NewEtcdResolver(endpoints []string, opts ...Option) (discovery.Resolver, er
 		return nil, err
 	}
 	return &etcdResolver{
-		etcdClient: etcdClient,
-		prefix:     cfg.Prefix,
+		etcdClient:    etcdClient,
+		prefix:        cfg.Prefix,
+		defaultWeight: cfg.DefaultWeight,
 	}, nil
 }
 
@@ -95,7 +98,7 @@ func (e *etcdResolver) Resolve(ctx context.Context, desc string) (discovery.Resu
 		}
 		weight := info.Weight
 		if weight <= 0 {
-			weight = defaultWeight
+			weight = e.defaultWeight
 		}
 		eps = append(eps, discovery.NewInstance(info.Network, info.Address, weight, info.Tags))
 	}
@@ -118,6 +121,11 @@ func (e *etcdResolver) Diff(cacheKey string, prev, next discovery.Result) (disco
 func (e *etcdResolver) Name() string {
 	return "etcd"
 }
+
 func (e *etcdResolver) GetPrefix() string {
 	return e.prefix
+}
+
+func (e *etcdResolver) GetDefaultWeight() int {
+	return e.defaultWeight
 }

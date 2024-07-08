@@ -188,6 +188,47 @@ func main() {
 }
 ```
 
+## Default Weight
+
+The weighted load balancing algorithm can only handle positive weights, and will be filtered when the weight is if 0 or negative. Setting default weights can avoid filtering.
+
+### Default Config
+
+| Config Name       | Default Value | Description                                                                                                                          |
+|:------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------|
+| WithDefaultWeight | 10            | Used to set the default wight of instances, if 0 or negative, it means instances with 0 or negative weight will be filtered          |
+
+### Example
+
+```go
+package main
+
+import (
+	...
+    "github.com/cloudwego/kitex/client"
+    etcd "github.com/kitex-contrib/registry-etcd"
+)
+
+func main() {
+	// creates a etcd based resolver with default weight
+	r, err := etcd.NewEtcdResolver([]string{"127.0.0.1:2379"}, etcd.WithDefaultWeight(10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := hello.MustNewClient("Hello", client.WithResolver(r))
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		resp, err := client.Echo(ctx, &api.Request{Message: "Hello"})
+		cancel()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println(resp)
+		time.Sleep(time.Second)
+	}
+}
+```
+
 ## How to Dynamically specify ip and port
 To dynamically specify an IP and port, one should first set the environment variables KITEX_IP_TO_REGISTRY and KITEX_PORT_TO_REGISTRY. If these variables are not set, the system defaults to using the service's listening IP and port. Notably, if the service's listening IP is either not set or set to "::", the system will automatically retrieve and use the machine's IPV4 address.
 
