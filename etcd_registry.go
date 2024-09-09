@@ -109,6 +109,7 @@ func NewEtcdRegistryWithRetry(endpoints []string, retryConfig *retry.Config, opt
 		leaseTTL:    getTTL(),
 		retryConfig: retryConfig,
 		stop:        make(chan struct{}, 1),
+		prefix:      cfg.Prefix,
 	}, nil
 }
 
