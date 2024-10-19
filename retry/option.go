@@ -15,8 +15,9 @@
 package retry
 
 import (
-	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex/retry"
 	"time"
+
+	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex/retry"
 )
 
 // Option is the only struct that can be used to set Retry Config.

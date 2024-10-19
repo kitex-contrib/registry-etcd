@@ -15,8 +15,9 @@
 package etcd
 
 import (
-	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex"
 	"time"
+
+	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex"
 )
 
 // Option sets options such as username, tls etc.

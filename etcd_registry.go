@@ -16,10 +16,11 @@
 package etcd
 
 import (
+	"net"
+
 	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex"
 	"github.com/cloudwego/kitex/pkg/registry"
 	"github.com/kitex-contrib/registry-etcd/retry"
-	"net"
 )
 
 // NewEtcdRegistry creates an etcd based registry.
