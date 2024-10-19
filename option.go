@@ -15,11 +15,7 @@
 package etcd
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex"
-	"io/ioutil" //nolint
 	"time"
 )
 
@@ -39,27 +35,6 @@ func WithAuthOpt(username, password string) Option {
 // WithDialTimeoutOpt returns a option set dialTimeout
 func WithDialTimeoutOpt(dialTimeout time.Duration) Option {
 	return etcdkitex.WithDialTimeoutOpt(dialTimeout)
-}
-
-func newTLSConfig(certFile, keyFile, caFile, serverName string) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, err
-	}
-	caCert, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		return nil, err
-	}
-	caCertPool := x509.NewCertPool()
-	successful := caCertPool.AppendCertsFromPEM(caCert)
-	if !successful {
-		return nil, errors.New("failed to parse ca certificate as PEM encoded content")
-	}
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
-	}
-	return cfg, nil
 }
 
 // WithEtcdServicePrefix returns an option that sets the Prefix field in the Config struct
