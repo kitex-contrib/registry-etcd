@@ -14,33 +14,12 @@
 
 package retry
 
-import "time"
+import (
+	"github.com/cloudwego-contrib/cwgo-pkg/registry/etcd/etcdkitex/retry"
+)
 
-type Config struct {
-	// The maximum number of call attempt times, including the initial call
-	MaxAttemptTimes uint
-
-	// The delay time of observing etcd key
-	ObserveDelay time.Duration
-
-	// The retry delay time
-	RetryDelay time.Duration
-}
-
-func (o *Config) Apply(opts []Option) {
-	for _, op := range opts {
-		op.F(o)
-	}
-}
+type Config = retry.Config
 
 func NewRetryConfig(opts ...Option) *Config {
-	retryConfig := &Config{
-		MaxAttemptTimes: 5,
-		ObserveDelay:    30 * time.Second,
-		RetryDelay:      10 * time.Second,
-	}
-
-	retryConfig.Apply(opts)
-
-	return retryConfig
+	return retry.NewRetryConfig(opts...)
 }

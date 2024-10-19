@@ -13,23 +13,3 @@
 // limitations under the License.
 
 package etcd
-
-import "fmt"
-
-func serviceKeyPrefix(prefix string, serviceName string) string {
-	prefix = prefix + "/%v/"
-	return fmt.Sprintf(prefix, serviceName)
-}
-
-// serviceKey generates the key used to stored in etcd.
-func serviceKey(prefix string, serviceName, addr string) string {
-	return serviceKeyPrefix(prefix, serviceName) + addr
-}
-
-// instanceInfo used to stored service basic info in etcd.
-type instanceInfo struct {
-	Network string            `json:"network"`
-	Address string            `json:"address"`
-	Weight  int               `json:"weight"`
-	Tags    map[string]string `json:"tags"`
-}
