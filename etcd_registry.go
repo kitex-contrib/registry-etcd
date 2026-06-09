@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -41,7 +42,7 @@ const (
 type etcdRegistry struct {
 	etcdClient  *clientv3.Client
 	leaseTTL    int64
-	meta        *registerMeta
+	meta        atomic.Pointer[registerMeta]
 	retryConfig *retry.Config
 	stop        chan struct{}
 	address     net.Addr
@@ -53,6 +54,8 @@ type registerMeta struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
+
+var closeMeta registerMeta
 
 // NewEtcdRegistry creates an etcd based registry.
 func NewEtcdRegistry(endpoints []string, opts ...Option) (registry.Registry, error) {
@@ -153,7 +156,7 @@ func (e *etcdRegistry) Register(info *registry.Info) error {
 	if err := e.keepalive(&meta); err != nil {
 		return err
 	}
-	e.meta = &meta
+	e.meta.Store(&meta)
 	return nil
 }
 
@@ -165,7 +168,10 @@ func (e *etcdRegistry) Deregister(info *registry.Info) error {
 	if err := e.deregister(info); err != nil {
 		return err
 	}
-	e.meta.cancel()
+	m := e.meta.Swap(&closeMeta)
+	if m != nil && m.cancel != nil {
+		m.cancel()
+	}
 	return nil
 }
 
@@ -218,48 +224,57 @@ func (e *etcdRegistry) keepRegister(key, val string, retryConfig *retry.Config) 
 		case <-time.After(delay):
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-		resp, err := e.etcdClient.Get(ctx, key)
-		if err != nil {
-			klog.Warnf("keep register get %s failed with err: %v", key, err)
-			delay = retryConfig.RetryDelay
-			failedTimes++
-			continue
-		}
-
-		if len(resp.Kvs) == 0 {
-			klog.Infof("keep register service %s", key)
-			delay = retryConfig.RetryDelay
-			leaseID, err := e.grantLease()
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+			resp, err := e.etcdClient.Get(ctx, key)
 			if err != nil {
-				klog.Warnf("keep register grant lease %s failed with err: %v", key, err)
+				klog.Warnf("keep register get %s failed with err: %v", key, err)
+				delay = retryConfig.RetryDelay
 				failedTimes++
-				continue
+				return
 			}
 
-			_, err = e.etcdClient.Put(ctx, key, val, clientv3.WithLease(leaseID))
-			if err != nil {
-				klog.Warnf("keep register put %s failed with err: %v", key, err)
-				failedTimes++
-				continue
-			}
+			if len(resp.Kvs) == 0 {
+				klog.Infof("keep register service %s", key)
+				delay = retryConfig.RetryDelay
+				leaseID, err := e.grantLease()
+				if err != nil {
+					klog.Warnf("keep register grant lease %s failed with err: %v", key, err)
+					failedTimes++
+					return
+				}
 
-			meta := registerMeta{
-				leaseID: leaseID,
-			}
-			meta.ctx, meta.cancel = context.WithCancel(context.Background())
-			if err := e.keepalive(&meta); err != nil {
-				klog.Warnf("keep register keepalive %s failed with err: %v", key, err)
-				failedTimes++
-				continue
-			}
-			e.meta.cancel()
-			e.meta = &meta
-			delay = retryConfig.ObserveDelay
-		}
+				_, err = e.etcdClient.Put(ctx, key, val, clientv3.WithLease(leaseID))
+				if err != nil {
+					klog.Warnf("keep register put %s failed with err: %v", key, err)
+					failedTimes++
+					return
+				}
 
-		failedTimes = 0
+				meta := registerMeta{
+					leaseID: leaseID,
+				}
+				meta.ctx, meta.cancel = context.WithCancel(context.Background())
+				if err := e.keepalive(&meta); err != nil {
+					klog.Warnf("keep register keepalive %s failed with err: %v", key, err)
+					failedTimes++
+					return
+				}
+				oldMeta := e.meta.Load()
+				if oldMeta == &closeMeta {
+					meta.cancel()
+					return
+				}
+				if e.meta.CompareAndSwap(oldMeta, &meta) {
+					if oldMeta != nil && oldMeta.cancel != nil {
+						oldMeta.cancel()
+					}
+				}
+				delay = retryConfig.ObserveDelay
+			}
+			failedTimes = 0
+		}()
 	}
 	klog.Errorf("keep register service %s failed times:%d", key, failedTimes)
 }
@@ -294,15 +309,36 @@ func (e *etcdRegistry) keepalive(meta *registerMeta) error {
 	if err != nil {
 		return err
 	}
+
 	go func() {
-		// eat keepAlive channel to keep related lease alive.
 		klog.Infof("start keepalive lease %x for etcd registry", meta.leaseID)
-		for range keepAlive {
-			select {
-			case <-meta.ctx.Done():
-				klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
-				return
-			default:
+		for {
+			channelClosed := false
+			for !channelClosed {
+				select {
+				case <-meta.ctx.Done():
+					klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
+					return
+				case _, ok := <-keepAlive:
+					if !ok {
+						channelClosed = true
+					}
+				}
+			}
+			klog.Warnf("keepalive channel closed for lease %x for etcd registry", meta.leaseID)
+
+			for {
+				select {
+				case <-meta.ctx.Done():
+					klog.Infof("stop keepalive lease %x for etcd registry", meta.leaseID)
+					return
+				case <-time.After(time.Second * 2):
+				}
+				keepAlive, err = e.etcdClient.KeepAlive(meta.ctx, meta.leaseID)
+				if err == nil {
+					break
+				}
+				klog.Warnf("retry keepalive lease %x failed with err: %v", meta.leaseID, err)
 			}
 		}
 	}()
